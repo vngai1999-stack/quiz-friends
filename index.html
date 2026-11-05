@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>練習題庫</title>
+  <style>
+    :root {
+      --bg: #e7eef3;
+      --ink: #1b2836;
+      --muted: #5d6d7e;
+      --line: #d3dee8;
+      --accent: #1d4f91;
+      --accent-dark: #163e72;
+      --ok: #1e7a4a;
+      --ok-bg: #e8f6ee;
+      --bad: #a61b22;
+      --bad-bg: #fdecee;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif;
+      line-height: 1.55;
+    }
+
+    button, input, textarea { font: inherit; color: inherit; }
+    button { cursor: pointer; border: 0; border-radius: 12px; min-height: 46px; padding: 10px 14px; background: #e7eef5; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    button:focus-visible, input:focus-visible {
+      outline: 3px solid #8eb4e0;
+      outline-offset: 2px;
+    }
+
+    .app { max-width: 720px; margin: 0 auto; padding: 28px 16px 56px; }
+    h1 { margin: 0 0 12px; font-size: 1.7rem; line-height: 1.35; }
+    p { margin: 8px 0; }
+    .kicker { margin: 0 0 6px; color: var(--accent); font-weight: 700; }
+    .hint { color: var(--muted); }
+    .msg-warn { color: var(--bad); min-height: 1.4em; }
+    .msg-ok { color: var(--ok); min-height: 1.4em; }
+
+    .card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 10px 30px rgba(24, 49, 77, 0.06);
+    }
+
+    .primary { background: var(--accent); color: #fff; font-weight: 700; }
+    .primary:hover:not(:disabled) { background: var(--accent-dark); }
+    .ghost { background: #fff; border: 1px solid var(--line); }
+    .block { display: block; width: 100%; margin-top: 8px; }
+    .text-btn { display: block; width: 100%; margin-top: 4px; background: transparent; color: var(--accent); }
+
+    .bar { height: 8px; background: #dbe3ea; border-radius: 99px; overflow: hidden; }
+    .bar span { display: block; height: 100%; background: var(--accent); }
+
+    .q-image, .result-image {
+      display: block;
+      max-width: 100%;
+      object-fit: contain;
+      border-radius: 12px;
+      margin: 12px 0;
+    }
+
+    .q-image {
+      width: 100%;
+      max-height: 420px;
+      background: #f4f7fa;
+      border: 1px solid var(--line);
+    }
+
+    .result-image { width: auto; max-height: 220px; }
+
+    .choices { display: grid; gap: 8px; margin-top: 14px; }
+    .choice {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      text-align: left;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+    }
+    .choice:hover:not(:disabled) { border-color: #8eadd4; }
+    .choice.selected { border-color: var(--accent); background: #e8f1fb; }
+    .letter {
+      flex: 0 0 auto;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: #e7eef5;
+      font-weight: 700;
+    }
+    .choice.selected .letter { background: var(--accent); color: #fff; }
+    .choice span:last-child { overflow-wrap: anywhere; }
+    .nav { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+    .nav button { width: 100%; }
+
+    .file-label {
+      display: block;
+      width: 100%;
+      margin-top: 8px;
+      text-align: center;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      min-height: 46px;
+      line-height: 46px;
+      cursor: pointer;
+    }
+
+    .sr-file {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+    }
+
+    .result { padding: 8px 0 8px 12px; border-left: 4px solid var(--line); }
+    .result + .result { margin-top: 14px; }
+    .result.ok { border-left-color: var(--ok); }
+    .result.bad { border-left-color: var(--bad); }
+    .result-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .badge { display: inline-block; border-radius: 999px; padding: 2px 10px; font-weight: 700; }
+    .badge.ok { background: var(--ok-bg); color: var(--ok); }
+    .badge.bad { background: var(--bad-bg); color: var(--bad); }
+  </style>
+</head>
+<body>
+  <main id="app" class="app">
+    <p class="hint">正在載入題庫…</p>
+  </main>
+  <noscript><p>請開啟瀏覽器的 JavaScript 才能使用題庫。</p></noscript>
+  <script>
+    const PROGRESS_KEY = "quiz-friend-progress-v1";
+    const LETTERS = ["A", "B", "C", "D"];
+    const CATEGORIES = [
+      { id: "flag", label: "旗/燈" },
+      { id: "shipping", label: "船務" },
+      { id: "knowledge", label: "航海智識" },
+      { id: "ship", label: "船" },
+      { id: "mix", label: "混合" }
+    ];
+
+    let bank = { title: "練習題庫", questions: [] };
+    let view = "start";
+    let index = 0;
+    let answers = {};
+    let message = "";
+    let messageKind = "msg-warn";
+    let lastView = "";
+    let focusQuestion = false;
+    let busy = false;
+    let round = { ids: [], orders: {} };
+
+    function newId() {
+      return "q" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    }
+
+    function esc(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function safeImage(src) {
+      return typeof src === "string" && /^data:image\/(?:jpeg|jpg|png|webp|gif);base64,[a-z0-9+/=]+$/i.test(src);
+    }
+
+    function openDb() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open("quiz-friend", 1);
+        request.onupgradeneeded = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains("kv")) db.createObjectStore("kv");
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error("無法開啟儲存空間"));
+      });
+    }
+
+    function idbGet(key) {
+      return openDb().then((db) => new Promise((resolve, reject) => {
+        const tx = db.transaction("kv", "readonly");
+        const request = tx.objectStore("kv").get(key);
+        request.onsuccess = () => {
+          const value = request.result;
+          db.close();
+          resolve(value);
+        };
+        request.onerror = () => {
+          db.close();
+          reject(request.error || new Error("讀取失敗"));
+        };
+      }));
+    }
+
+    function idbSet(key, value) {
+      return openDb().then((db) => new Promise((resolve, reject) => {
+        const tx = db.transaction("kv", "readwrite");
+        tx.objectStore("kv").put(value, key);
+        tx.oncomplete = () => {
+          db.close();
+          resolve();
+        };
+        tx.onerror = () => {
+          db.close();
+          reject(tx.error || new Error("儲存失敗"));
+        };
+        tx.onabort = () => {
+          db.close();
+          reject(tx.error || new Error("儲存失敗"));
+        };
+      }));
+    }
+
+    function sanitizeBank(data) {
+      const questions = [];
+      const source = data && Array.isArray(data.questions) ? data.questions : [];
+      source.forEach((item) => {
+        if (!item || typeof item.text !== "string" || !Array.isArray(item.choices)) return;
+        const choices = [0, 1, 2, 3].map((i) => String(item.choices[i] || "").trim());
+        const answer = Number(item.answer);
+        if (choices.some((choice) => !choice)) return;
+        if (!LETTERS[answer]) return;
+        const allowed = ["flag", "shipping", "knowledge", "ship"];
+        questions.push({
+          id: String(item.id || newId()),
+          text: item.text.trim(),
+          choices,
+          answer,
+          image: safeImage(item.image) ? item.image : "",
+          category: allowed.indexOf(item.category) >= 0 ? item.category : ""
+        });
+      });
+      const title = data && typeof data.title === "string" && data.title.trim() ? data.title.trim() : "練習題庫";
+      return { title, questions };
+    }
+
+    async function loadBank() {
+      bank = sanitizeBank(await idbGet("bank"));
+    }
+
+    function saveBank() {
+      return idbSet("bank", bank);
+    }
+
+    function shuffle(list) {
+      const copy = list.slice();
+      for (let i = copy.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const current = copy[i];
+        copy[i] = copy[j];
+        copy[j] = current;
+      }
+      return copy;
+    }
+
+    function validOrder(order) {
+      return Array.isArray(order) && order.length === 4 && [0, 1, 2, 3].every((number) => order.indexOf(number) !== -1);
+    }
+
+    function questionById(id) {
+      return bank.questions.find((item) => item.id === id);
+    }
+
+    function categoryLabel(id) {
+      const found = CATEGORIES.find((item) => item.id === id);
+      return found ? found.label : "未分類";
+    }
+
+    function poolFor(categoryId) {
+      if (categoryId === "mix") {
+        return bank.questions.filter((item) => ["flag", "shipping", "knowledge", "ship"].indexOf(item.category) >= 0);
+      }
+      return bank.questions.filter((item) => item.category === categoryId);
+    }
+
+    function buildRound(categoryId) {
+      let pool = poolFor(categoryId);
+      if (pool.length > 30) pool = shuffle(pool).slice(0, 30);
+      const ids = [];
+      const orders = {};
+      pool.forEach((item) => {
+        ids.push(item.id);
+        orders[item.id] = shuffle([0, 1, 2, 3]);
+      });
+      round = { ids, orders, category: categoryId };
+    }
+
+    function restoreRound(saved) {
+      const ids = [];
+      const orders = {};
+      const source = saved && Array.isArray(saved.ids) ? saved.ids : [];
+      source.forEach((id) => {
+        if (!questionById(id) || ids.indexOf(id) !== -1) return;
+        ids.push(id);
+        const order = saved.orders && saved.orders[id];
+        orders[id] = validOrder(order) ? order.slice() : shuffle([0, 1, 2, 3]);
+      });
+      round = { ids: ids.slice(0, 30), orders };
+    }
+
+    function quizQuestions() {
+      return round.ids.map(questionById).filter(Boolean);
+    }
+
+    function displayLabel(item, originalIndex) {
+      const order = round.orders[item.id] || [0, 1, 2, 3];
+      const displayIndex = order.indexOf(originalIndex);
+      const letter = LETTERS[displayIndex >= 0 ? displayIndex : originalIndex];
+      return letter + ". " + item.choices[originalIndex];
+    }
+
+    function answeredCount() {
+      return quizQuestions().filter((item) => Number.isInteger(answers[item.id])).length;
+    }
+
+    function allAnswered() {
+      const questions = quizQuestions();
+      return questions.length > 0 && answeredCount() === questions.length;
+    }
+
+    function loadProgress() {
+      try {
+        const saved = JSON.parse(sessionStorage.getItem(PROGRESS_KEY) || "null");
+        if (!saved || typeof saved !== "object") return;
+        if (saved.view === "quiz" || saved.view === "result") view = saved.view;
+        index = Number.isInteger(saved.index) ? saved.index : 0;
+        answers = {};
+        if (saved.answers && typeof saved.answers === "object") {
+          Object.keys(saved.answers).forEach((id) => {
+            const value = saved.answers[id];
+            if (Number.isInteger(value) && value >= 0 && value <= 3) answers[id] = value;
+          });
+        }
+        restoreRound(saved.round);
+        if ((view === "quiz" || view === "result") && !quizQuestions().length) view = "start";
+        if (view === "quiz" && quizQuestions().length) {
+          index = Math.max(0, Math.min(index, quizQuestions().length - 1));
+        }
+        if (view === "result" && !allAnswered()) view = quizQuestions().length ? "quiz" : "start";
+      } catch (error) {
+        view = "start";
+      }
+    }
+
+    function saveProgress() {
+      sessionStorage.setItem(PROGRESS_KEY, JSON.stringify({ view, index, answers, round }));
+    }
+
+    function showMessage(text, kind) {
+      message = text;
+      messageKind = kind || "msg-warn";
+      const el = document.getElementById("form-message");
+      if (el) {
+        el.textContent = text;
+        el.className = messageKind;
+        return;
+      }
+      render();
+    }
+
+    function entranceButtons() {
+      return CATEGORIES.map((item, index) => {
+        const count = poolFor(item.id).length;
+        return `<button type="button" class="primary block" data-action="start-category" data-category="${item.id}" ${count ? "" : "disabled"}>${index + 1}. ${esc(item.label)}（${count} 條）</button>`;
+      }).join("");
+    }
+
+    function renderStart() {
+      const progress = answeredCount();
+      const resume = progress > 0
+        ? `<button type="button" class="ghost block" data-action="resume">繼續作答：${esc(categoryLabel(round.category))}</button>`
+        : "";
+      const intro = bank.questions.length
+        ? "請選擇題庫。1 到 4 各自獨立。5 是前四科混合。某一科超過 30 條時，會隨機抽 30 條。選項順序每次都會重新排列。"
+        : "還沒有題目。請先還原作者給你的題庫備份。";
+      return `
+        <p class="kicker">選擇題題庫</p>
+        <h1>${esc(bank.title || "練習題庫")}</h1>
+        <section class="card">
+          <p>${intro}</p>
+          ${resume}
+          ${entranceButtons()}
+          <p class="hint">這裡只能作答和還原備份，不能修改題目。</p>
+          <label class="file-label" for="import-file">還原備份</label>
+          <input id="import-file" class="sr-file" type="file" accept="application/json,.json">
+          <p id="form-message" class="${messageKind}">${esc(message)}</p>
+        </section>
+      `;
+    }
+
+    function renderQuiz() {
+      const questions = quizQuestions();
+      const total = questions.length;
+      const item = questions[index];
+      const selected = answers[item.id];
+      const answered = answeredCount();
+      const pct = Math.round((answered / total) * 100);
+      const order = round.orders[item.id] || [0, 1, 2, 3];
+      const choices = order.map((originalIndex, displayIndex) => {
+        const on = selected === originalIndex;
+        return `<button type="button" class="choice${on ? " selected" : ""}" data-action="choose" data-choice="${originalIndex}" aria-pressed="${on ? "true" : "false"}"><span class="letter">${LETTERS[displayIndex]}</span><span>${esc(item.choices[originalIndex])}</span></button>`;
+      }).join("");
+      const image = safeImage(item.image) ? `<img class="q-image" alt="題目圖片" src="${item.image}">` : "";
+      return `
+        <p class="kicker">${esc(categoryLabel(round.category))} · 第 ${index + 1} 條 / 共 ${total} 條</p>
+        <div class="bar" aria-hidden="true"><span style="width:${pct}%"></span></div>
+        <p class="hint">已答 ${answered} / ${total}</p>
+        <section class="card">
+          <h1 id="question-title" tabindex="-1">${esc(item.text)}</h1>
+          ${image}
+          <p class="hint">請選一個答案。</p>
+          <div class="choices">${choices}</div>
+          <div class="nav">
+            <button type="button" data-action="prev" ${index === 0 ? "disabled" : ""}>上一條</button>
+            <button type="button" data-action="next" ${index === total - 1 ? "disabled" : ""}>下一條</button>
+          </div>
+          <button type="button" class="primary block" data-action="finish" ${answered === total ? "" : "disabled"}>完成並查看對錯</button>
+          <p class="hint">${answered === total ? "已全部作答，可以查看每一條的對錯。" : "全部答完才能查看對錯。"}</p>
+          <button type="button" class="text-btn" data-action="home">返回首頁</button>
+        </section>
+      `;
+    }
+
+    function renderResult() {
+      const questions = quizQuestions();
+      const total = questions.length;
+      const correct = questions.filter((item) => answers[item.id] === item.answer).length;
+      const rows = questions.map((item, i) => {
+        const picked = answers[item.id];
+        const ok = picked === item.answer;
+        const image = safeImage(item.image) ? `<img class="result-image" alt="" src="${item.image}">` : "";
+        const yours = Number.isInteger(picked) ? displayLabel(item, picked) : "未作答";
+        const right = displayLabel(item, item.answer);
+        return `
+          <article class="result ${ok ? "ok" : "bad"}">
+            <div class="result-head">
+              <strong>第 ${i + 1} 條</strong>
+              <span class="badge ${ok ? "ok" : "bad"}">${ok ? "正確" : "錯誤"}</span>
+            </div>
+            <p>${esc(item.text)}</p>
+            ${image}
+            <p>你的答案：${esc(yours)}</p>
+            <p>正確答案：${esc(right)}</p>
+          </article>
+        `;
+      }).join("");
+      return `
+        <section class="card">
+          <p class="kicker">作答結果</p>
+          <h1>答對 ${correct} / ${total} 條</h1>
+          <button type="button" class="primary block" data-action="restart">再答一次</button>
+          <button type="button" class="ghost block" data-action="home">返回首頁</button>
+        </section>
+        <section class="card">${rows}</section>
+      `;
+    }
+
+    function viewHtml() {
+      if (view === "quiz") return renderQuiz();
+      if (view === "result") return renderResult();
+      return renderStart();
+    }
+
+    function render() {
+      if ((view === "quiz" || view === "result") && !quizQuestions().length) view = "start";
+      if (view === "quiz" && quizQuestions().length) {
+        index = Math.max(0, Math.min(index, quizQuestions().length - 1));
+      }
+      document.title = bank.title || "練習題庫";
+      const root = document.getElementById("app");
+      const shouldFocus = view === "quiz" && focusQuestion;
+      focusQuestion = false;
+      root.innerHTML = viewHtml();
+      if (view !== lastView) {
+        window.scrollTo(0, 0);
+        lastView = view;
+      }
+      if (shouldFocus) {
+        const title = document.getElementById("question-title");
+        if (title) title.focus();
+      }
+    }
+
+    function go(delta) {
+      const next = index + delta;
+      if (next < 0 || next >= quizQuestions().length) return;
+      index = next;
+      view = "quiz";
+      focusQuestion = true;
+      saveProgress();
+      render();
+    }
+
+    function finish() {
+      if (!allAnswered()) return;
+      view = "result";
+      saveProgress();
+      render();
+    }
+
+    function choose(btn) {
+      const item = quizQuestions()[index];
+      if (!item || view !== "quiz") return;
+      const choice = Number(btn.getAttribute("data-choice"));
+      if (![0, 1, 2, 3].includes(choice)) return;
+      answers[item.id] = choice;
+      saveProgress();
+      render();
+    }
+
+    function goHome() {
+      if (view === "result") {
+        answers = {};
+        index = 0;
+        round = { ids: [], orders: {} };
+      }
+      view = "start";
+      message = "";
+      saveProgress();
+      render();
+    }
+
+    function resume() {
+      if (!quizQuestions().length) {
+        view = "start";
+        render();
+        return;
+      }
+      view = "quiz";
+      if (index >= quizQuestions().length) index = 0;
+      saveProgress();
+      render();
+    }
+
+    function restart() {
+      const category = round.category || "";
+      if (!poolFor(category).length) {
+        view = "start";
+        answers = {};
+        index = 0;
+        round = { ids: [], orders: {} };
+        saveProgress();
+        render();
+        return;
+      }
+      answers = {};
+      index = 0;
+      buildRound(category);
+      view = "quiz";
+      focusQuestion = true;
+      saveProgress();
+      render();
+    }
+
+    function startCategory(btn) {
+      const categoryId = btn.getAttribute("data-category");
+      if (!poolFor(categoryId).length) return;
+      answers = {};
+      index = 0;
+      buildRound(categoryId);
+      view = "quiz";
+      focusQuestion = true;
+      saveProgress();
+      render();
+    }
+
+    async function importBank(file) {
+      if (busy) return;
+      let data;
+      try {
+        data = JSON.parse(await file.text());
+      } catch (error) {
+        showMessage("這個檔案不是題庫備份。");
+        return;
+      }
+      const next = sanitizeBank(data);
+      if (!next.questions.length) {
+        showMessage("備份裡沒有可用的題目。");
+        return;
+      }
+      if (bank.questions.length && !window.confirm("還原會取代現在的題目，確定要繼續嗎？")) return;
+      const snapshot = bank;
+      bank = next;
+      busy = true;
+      try {
+        await saveBank();
+      } catch (error) {
+        bank = snapshot;
+        busy = false;
+        showMessage("還原失敗。");
+        return;
+      }
+      busy = false;
+      answers = {};
+      index = 0;
+      round = { ids: [], orders: {} };
+      view = "start";
+      message = "已還原 " + bank.questions.length + " 條題目。可以從首頁選擇題庫。";
+      messageKind = "msg-ok";
+      saveProgress();
+      render();
+    }
+
+    const actions = {
+      home: goHome,
+      resume,
+      restart,
+      "start-category": startCategory,
+      prev() { go(-1); },
+      next() { go(1); },
+      finish,
+      choose
+    };
+
+    function onClick(event) {
+      const btn = event.target.closest("[data-action]");
+      if (!btn || btn.disabled) return;
+      const fn = actions[btn.getAttribute("data-action")];
+      if (fn) fn(btn);
+    }
+
+    function onChange(event) {
+      const el = event.target;
+      if (el.id !== "import-file") return;
+      const file = el.files && el.files[0];
+      el.value = "";
+      if (file) importBank(file);
+    }
+
+    async function loadSharedBank() {
+      if (location.protocol === "file:") return;
+      try {
+        const response = await fetch("bank.json", { cache: "no-store" });
+        if (!response.ok) return;
+        const next = sanitizeBank(await response.json());
+        if (!next.questions.length) return;
+        bank = next;
+        await saveBank();
+      } catch (error) {}
+    }
+
+    async function init() {
+      await loadBank();
+      await loadSharedBank();
+      loadProgress();
+      document.body.addEventListener("click", onClick);
+      document.body.addEventListener("change", onChange);
+      render();
+    }
+
+    init().catch((error) => {
+      console.error(error);
+      document.getElementById("app").textContent = "題庫無法開啟。請改用電腦上的 Chrome 或 Edge 打開這個檔案。";
+    });
+  </script>
+</body>
+</html>
