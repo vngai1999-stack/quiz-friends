@@ -292,8 +292,8 @@
     }
 
     function buildRound(categoryId) {
-      let pool = poolFor(categoryId);
-      if (pool.length > 30) pool = shuffle(pool).slice(0, 30);
+      let pool = shuffle(poolFor(categoryId));
+      if (pool.length > 30) pool = pool.slice(0, 30);
       const ids = [];
       const orders = {};
       pool.forEach((item) => {
@@ -389,7 +389,7 @@
         ? `<button type="button" class="ghost block" data-action="resume">繼續作答：${esc(categoryLabel(round.category))}</button>`
         : "";
       const intro = bank.questions.length
-        ? "請選擇題庫。1 到 4 各自獨立。5 是前四科混合。某一科超過 30 條時，會隨機抽 30 條。選項順序每次都會重新排列。"
+        ? "請選擇題庫。1 到 4 各自獨立。5 是前四科混合。每次作答都會把題目和選項重新排列。某一科超過 30 條時，會隨機抽 30 條。"
         : "還沒有題目。請先還原作者給你的題庫備份。";
       return `
         <p class="kicker">選擇題題庫</p>
